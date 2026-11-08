@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MTMIS — Loop Tool</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif; background: linear-gradient(160deg, #e8f5ee, #f2f4f7 55%); color: #1f2937; padding: 20px; min-height: 100vh; }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  .hero { background: linear-gradient(135deg, #0b6e4f, #0e8a63); color: #fff; border-radius: 20px; padding: 26px 28px; box-shadow: 0 10px 30px rgba(11,110,79,.35); }
+  .hero h1 { font-size: 24px; letter-spacing: .2px; }
+  .hero p { opacity: .9; font-size: 14px; margin-top: 6px; }
+  .card { background: #fff; border-radius: 18px; padding: 22px 24px; margin-top: 16px; box-shadow: 0 4px 18px rgba(0,0,0,.07); }
+  .card h2 { font-size: 17px; margin-bottom: 6px; color: #0b6e4f; }
+  .card .sub { font-size: 13px; color: #6b7280; margin-bottom: 8px; line-height: 1.6; }
+  label { display: block; font-size: 12.5px; font-weight: 700; margin: 12px 0 5px; color: #374151; }
+  input, textarea { width: 100%; padding: 11px 13px; font-size: 14px; border: 1.5px solid #dde3ea; border-radius: 10px; font-family: inherit; background: #fafbfc; }
+  input:focus, textarea:focus { outline: none; border-color: #0e8a63; background: #fff; }
+  textarea { min-height: 62px; resize: vertical; word-break: break-all; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 560px) { .row2 { grid-template-columns: 1fr; } }
+  button { flex: 1; min-width: 150px; padding: 13px; font-size: 15px; font-weight: 700; border: none; border-radius: 11px; cursor: pointer; transition: transform .1s; }
+  button:active { transform: scale(.98); }
+  button:disabled { opacity: .6; cursor: wait; }
+  .btn-green { background: #0b6e4f; color: #fff; }
+  .btn-dark { background: #111827; color: #fff; }
+  .btn-red { background: #b3261e; color: #fff; }
+  .btn-yellow { background: #ffd400; color: #111; }
+  #stopBtn, #resumeBtn, #pdfBtn { display: none; }
+  #status { margin-top: 14px; font-size: 13px; color: #6b7280; }
+  #status.error { color: #b3261e; }
+  #status.ok { color: #0b6e4f; font-weight: 600; }
+  .note { margin-top: 14px; font-size: 12.5px; color: #6b7280; line-height: 1.7; }
+  #loopLog { margin-top: 14px; background: #0f172a; color: #e2e8f0; border-radius: 12px; padding: 14px 16px; font-family: ui-monospace, Consolas, monospace; font-size: 13px; line-height: 1.8; max-height: 260px; overflow-y: auto; display: none; }
+  #loopLog.show { display: block; }
+  #loopLog .ok { color: #4ade80; }
+  #loopLog .skip { color: #94a3b8; }
+  #loopLog .err { color: #f87171; }
+  #loopLog .info { color: #facc15; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+  @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+  .field { background: #f8fafc; border: 1px solid #eef2f7; border-radius: 13px; padding: 13px 15px; }
+  .field .k { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #6b7280; }
+  .field .v { font-size: 16px; font-weight: 700; margin-top: 4px; word-break: break-word; }
+  .found-card { background: #fff; border-radius: 18px; padding: 20px 22px; margin-top: 14px; box-shadow: 0 4px 18px rgba(0,0,0,.07); border-top: 5px solid #0b6e4f; }
+  .found-card h3 { font-size: 18px; letter-spacing: .5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <h1>🚗 MTMIS — Loop Tool <span style="font-size:13px;background:#ffd400;color:#111;border-radius:20px;padding:3px 10px;vertical-align:middle;">v3 • HTML version (1990–2027)</span></h1>
+    <p>Excise &amp; Taxation Department, Punjab — aik page, dono loops, aik dafa captcha</p>
+  </div>
+  <p style="margin-top:10px;opacity:.9;font-size:13px;">Standalone HTML version — server par mtmis-proxy.php ke saath upload karo, ya file ko double-click kar ke kholo, ya local bridge (mtmis-bridge.py) se chalao. Loop chalte waqt is tab ko khula rakho.</p>
+
+  <!-- Captcha: aik dafa yahan paste karo, dono loops isi ko use karenge -->
+  <div class="card">
+    <h2>🔑 Captcha — aik dafa yahan paste karo</h2>
+    <div class="sub">Ye 3 values dono loops (number loop + date loop) khud use karenge — har loop ke liye dobara paste nahi karna. Captcha expire ho to neeche "Fresh Captcha Lao" dabao — naya captcha yahin aa jaye ga, sirf image wala number type karo.</div>
+    <div id="bridgeStatus" style="margin-top:10px;font-size:13px;font-weight:600;">Bridge: check ho raha hai...</div>
+
+    <div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap">
+      <button type="button" id="freshCapBtn" style="background:#0b6e4f;color:#fff;border:none;border-radius:10px;padding:10px 16px;font-weight:700;cursor:pointer">🔄 Fresh Captcha Lao</button>
+      <img id="capImg" alt="Captcha image" style="display:none;border:1px solid #d1d5db;border-radius:8px;max-width:230px;background:#fff">
+      <span id="capFetchStatus" style="font-size:13px;font-weight:600"></span>
+    </div>
+
+    <label for="endpoint">Endpoint URL</label>
+    <input id="endpoint" type="text" value="https://mtmis.excise.punjab.gov.pk/gtw/Public/Mtmis/GetVehicleInfoByRegNoAndDate">
+
+    <label for="capInput">Captcha Input (wo number jo captcha dekh kar type karte ho)</label>
+    <input id="capInput" type="text" value="662686">
+
+    <label for="capToken">Captcha Token (lambi string)</label>
+    <textarea id="capToken">MTGMQFOrs20Q2nsWqcVEcWXcC2cNb8tphbkHf922LDYai54BNDT0wRnx578BAiJ4OmBh1sFrdNrV8NQwnxDEmA</textarea>
+
+    <label for="capText">Captcha Text (chhota code)</label>
+    <input id="capText" type="text" value="O4oqmrKWvlRL4S6pQ4CoQg">
+  </div>
+
+  <!-- Number loop: registration number ke zariye, date neeche -->
+  <div class="card">
+    <h2>🔢 Number Loop — registration number ke zariye</h2>
+    <div class="sub">Pehla aur aakhri number do — prefix (jaise RNO-17-) khud constant rahega, sirf serial badlega. Date neeche wali field se sab numbers par wohi lagegi.</div>
+
+    <div class="row2">
+      <div>
+        <label for="numFirst">Pehla number</label>
+        <input id="numFirst" type="text" value="RNO-17-9370">
+      </div>
+      <div>
+        <label for="numLast">Aakhri number</label>
+        <input id="numLast" type="text" value="RNO-17-9399">
+      </div>
+    </div>
+
+    <label for="numDate">Date (neeche — YEAR-MONTH-DAY)</label>
+    <input id="numDate" type="text" value="2017-05-15">
+
+    <div class="row">
+      <button id="numBtn" class="btn-green" type="button">Number Loop Chalao</button>
+    </div>
+  </div>
+
+  <!-- Date loop: registration number fix, date ko loop -->
+  <div class="card">
+    <h2>📅 Date Loop — date ko loop karna ho to</h2>
+    <div class="sub">Registration number fix daalo, aur starting/ending year do — us saal ki har date check hogi, pehla found milte hi loop ruk jayega.</div>
+
+    <label for="dateReg">Registration No (fix)</label>
+    <input id="dateReg" type="text" value="RNO-17-9370">
+
+    <div class="row2">
+      <div>
+        <label for="dateStartYear">Starting Year (sirf saal, 1990–2027)</label>
+        <input id="dateStartYear" type="text" value="2026">
+      </div>
+      <div>
+        <label for="dateEndYear">Ending Year (sirf saal, 1990–2027)</label>
+        <input id="dateEndYear" type="text" value="2026">
+      </div>
+    </div>
+
+    <div class="row">
+      <button id="dateBtn" class="btn-green" type="button">Date Loop Chalao</button>
+    </div>
+  </div>
+
+  <!-- Shared controls + progress + results -->
+  <div class="card">
+    <h2>▶️ Loop Control</h2>
+    <div class="row">
+      <button id="stopBtn" class="btn-red" type="button">Stop</button>
+      <button id="resumeBtn" class="btn-yellow" type="button">Resume</button>
+      <button id="pdfBtn" class="btn-dark" type="button">PDF Banao (sirf Found)</button>
+    </div>
+    <div id="status"></div>
+    <div id="loopLog"></div>
+    <div class="note">• Sirf <b>200 / found</b> wale neeche jama honge aur PDF mein jayenge — baqi skip.<br>• Captcha expire ho to loop ruk jayega — upar fresh captcha daal kar <b>Resume</b> dabao, wahin se chalega.</div>
+  </div>
+
+  <div id="loopResults"></div>
+</div>
+
+<script>
+
+  var loopStop = false, loopRunning = false, loopState = null, loopPausedCaptcha = false, foundResults = [];
+
+  function getEndpoint() { return document.getElementById('endpoint').value.trim(); }
+  function getCaptcha() {
+    return {
+      input: document.getElementById('capInput').value.trim(),
+      token: document.getElementById('capToken').value.trim(),
+      text: document.getElementById('capText').value.trim()
+    };
+  }
+  function captchaOk(c) { return !!(c.input && c.token && c.text); }
+  function setStatus(msg, cls) {
+    var el = document.getElementById('status');
+    el.textContent = msg;
+    el.className = cls || '';
+  }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function field(k, v) {
+    if (v == null || v === '') return '';
+    return '<div class="field"><div class="k">' + k + '</div><div class="v">' + esc(v) + '</div></div>';
+  }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function logLine(text, cls) {
+    var log = document.getElementById('loopLog');
+    log.className = 'show';
+    var div = document.createElement('div');
+    div.className = cls || '';
+    div.textContent = text;
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  // "RNO-17-9370" + "RNO-17-9399" (ya "9399") -> {prefix, start, end}
+  function parseFirstLast(firstRaw, lastRaw) {
+    var mFirst = (firstRaw || '').trim().match(/^(.*?)(\d+)$/);
+    var mLast = (lastRaw || '').trim().match(/(\d+)$/);
+    if (!mFirst || !mLast) return null;
+    return { prefix: mFirst[1], start: parseInt(mFirst[2], 10), end: parseInt(mLast[1], 10) };
+  }
+  // Date parse: YYYY-MM-DD ya DD-MM-YYYY ya DD/MM/YYYY
+  function parseDateInput(s) {
+    s = (s || '').trim();
+    var m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (m) return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+    m = s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+    if (m) return new Date(Date.UTC(+m[3], +m[2] - 1, +m[1]));
+    return null;
+  }
+  function fmtAPI(d) {
+    return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0') + '-' + String(d.getUTCDate()).padStart(2, '0');
+  }
+
+  function foundCard(obj) {
+    var d = (obj && obj.data) || {};
+    var v = d.vehicle || {};
+    var c = d.challan || {};
+    var reg = v.registrationNo || obj.registrationNo || '';
+    var title = '🚗 ' + esc(reg);
+    if (obj.triedDate) title += ' — ' + esc(obj.triedDate);
+    return '<div class="found-card"><h3>' + title + '</h3><div class="grid">' +
+      field('Make', v.vehicleMaker) + field('Model', v.vehicleMake) +
+      field('Year', v.manufacturingYear) + field('Color', v.vehicleColor) +
+      field('Engine No', v.engineNo) + field('Registration Date', v.registrationDate) +
+      field('Price', v.price) + field('Tax Paid Upto', v.taxPaidUpto) +
+      field('Owner Name', d.ownerName) + field('Father / Husband', d.fatherHusbandName) +
+      field('City', d.city) + field('Status', v.vehicleStatus) +
+      field('Challan Process', c.businessProcess) + field('Challan Status', c.applicationStatus) +
+      field('Amount Paid', c.amountPaid) + field('Paid On', c.paidOn) + '</div></div>';
+  }
+
+  var BRIDGE_URL = 'http://127.0.0.1:8766';
+  async function parseVehicleResponse(res) {
+    var txt = await res.text();
+    try { return JSON.parse(txt); }
+    catch (e) { throw new Error('MTMIS ne JSON nahi diya (HTTP ' + res.status + ') — site par manual search check karo, phir fresh captcha se dobara chalao'); }
+  }
+  async function postVehicle(regNo, regDate) {
+    var c = getCaptcha();
+    var payload = {
+      endpoint: getEndpoint(),
+      registrationNo: regNo,
+      registrationDate: regDate,
+      dntCaptchaInputText: c.input,
+      dntCaptchaToken: c.token,
+      dntCaptchaText: c.text
+    };
+    // Raste, tarteeb se: server par mtmis-proxy.php (same-origin, CORS-free),
+    // phir direct MTMIS, phir local bridge (127.0.0.1:8766).
+    var attempts = [];
+    if (location.protocol.indexOf('http') === 0) attempts.push('proxy');
+    attempts.push('direct');
+    attempts.push('bridge');
+    var lastErr = null;
+    for (var i = 0; i < attempts.length; i++) {
+      try {
+        if (attempts[i] === 'proxy') {
+          var r1 = await fetch('mtmis-proxy.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          return parseVehicleResponse(r1);
+        }
+        if (attempts[i] === 'direct') {
+          var fd = new FormData();
+          fd.append('registrationNo', regNo);
+          fd.append('registrationDate', regDate);
+          fd.append('dntCaptchaInputText', c.input);
+          fd.append('dntCaptchaToken', c.token);
+          fd.append('dntCaptchaText', c.text);
+          var r2 = await fetch(getEndpoint(), {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Accept': 'application/json, text/plain, */*' },
+            body: fd
+          });
+          return parseVehicleResponse(r2);
+        }
+        var r3 = await fetch(BRIDGE_URL + '/api/vehicle', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        return parseVehicleResponse(r3);
+      } catch (e) { lastErr = e; }
+    }
+    throw lastErr || new Error('Koi rasta kaam nahi kiya — mtmis-proxy.php / bridge check karo');
+  }
+
+  function freshStart() {
+    document.getElementById('loopLog').innerHTML = '';
+    foundResults = [];
+    document.getElementById('loopResults').innerHTML = '';
+    document.getElementById('pdfBtn').style.display = 'none';
+    document.getElementById('resumeBtn').style.display = 'none';
+  }
+  function showControls() {
+    document.getElementById('stopBtn').style.display = 'block';
+  }
+  function finishLoop(summary) {
+    loopRunning = false;
+    document.getElementById('stopBtn').style.display = 'none';
+    if (!loopStop && !loopPausedCaptcha) {
+      logLine(summary, 'info');
+      if (foundResults.length) document.getElementById('pdfBtn').style.display = 'block';
+    }
+  }
+
+  /* ---------- NUMBER LOOP ---------- */
+  async function runNumberLoop() {
+    if (loopRunning) return;
+    var range = parseFirstLast(
+      document.getElementById('numFirst').value,
+      document.getElementById('numLast').value
+    );
+    if (!range || range.end < range.start) { setStatus('Number range theek nahi hai.', 'error'); return; }
+    var total = range.end - range.start + 1;
+    if (total > 100 && !confirm(total + ' numbers chalenge — pakka?')) return;
+    if (!captchaOk(getCaptcha())) { setStatus('Pehle upar captcha ki 3 values bharo.', 'error'); return; }
+    var regDate = document.getElementById('numDate').value.trim();
+    if (!regDate) { setStatus('Number loop ke liye neeche wali date bharo.', 'error'); return; }
+
+    var isResume = !!(loopState && loopState.mode === 'number' && loopState.prefix === range.prefix &&
+      loopState.end === range.end && loopState.next > range.start && loopState.next <= range.end);
+    if (!isResume) freshStart();
+    loopStop = false; loopRunning = true; loopPausedCaptcha = false;
+    showControls();
+    if (!isResume) logLine('Number Loop: ' + range.prefix + range.start + ' se ' + range.prefix + range.end + ' tak (' + total + ' numbers), date ' + regDate, 'info');
+    var startFrom = isResume ? loopState.next : range.start;
+    if (isResume) logLine('Resume: ' + range.prefix + startFrom + ' se dobara shuru', 'info');
+    loopState = { mode: 'number', prefix: range.prefix, start: range.start, end: range.end, next: startFrom };
+
+    var skipped = 0, errors = 0, consecutiveErrors = 0;
+    for (var n = startFrom; n <= range.end; n++) {
+      if (loopStop) { logLine('Loop roka gaya. Found: ' + foundResults.length, 'info'); break; }
+      var regNo = range.prefix + n;
+      loopState.next = n;
+      try {
+        var obj = await postVehicle(regNo, regDate);
+        var msg = (obj.message || '').toLowerCase();
+        if (obj.status === 200) {
+          consecutiveErrors = 0;
+          obj.registrationNo = regNo;
+          foundResults.push(obj);
+          var v = (obj.data || {}).vehicle || {};
+          logLine(regNo + ': ✅ FOUND — ' + (v.vehicleMaker || '') + ' ' + (v.vehicleMake || ''), 'ok');
+          document.getElementById('loopResults').innerHTML += foundCard(obj);
+          document.getElementById('pdfBtn').style.display = 'block';
+        } else if (msg.indexOf('captcha') !== -1) {
+          logLine(regNo + ': ⏸️ CAPTCHA expire/invalid — loop ruk gaya. Upar fresh captcha daal kar Resume dabao.', 'err');
+          loopState.next = n;
+          loopPausedCaptcha = true;
+          document.getElementById('resumeBtn').style.display = 'block';
+          break;
+        } else {
+          consecutiveErrors = 0; skipped++;
+          logLine(regNo + ': ⏭️ skip (' + (obj.message || ('status ' + obj.status)) + ')', 'skip');
+        }
+      } catch (e) {
+        errors++; consecutiveErrors++;
+        logLine(regNo + ': ❌ error — ' + e.message, 'err');
+        if (consecutiveErrors >= 3) {
+          logLine('Lagatar 3 errors — loop rok diya. File se fetch CORS ki wajah se block ho sakta hai.', 'err');
+          break;
+        }
+      }
+      // ultra fast: koi delay nahi — jawab aate hi agli request
+    }
+    if (!loopStop && !loopPausedCaptcha) loopState.next = range.end + 1;
+    finishLoop('Number Loop khatam — Found: ' + foundResults.length + ', Skip: ' + skipped + ', Error: ' + errors);
+  }
+
+  /* ---------- DATE LOOP ---------- */
+  async function runDateLoop() {
+    if (loopRunning) return;
+    var regNo = document.getElementById('dateReg').value.trim();
+    var startY = parseInt((document.getElementById('dateStartYear').value || '').trim(), 10);
+    var endY = parseInt((document.getElementById('dateEndYear').value || '').trim(), 10);
+    if (!regNo) { setStatus('Date loop ke liye registration number (fix) bharo.', 'error'); return; }
+    if (isNaN(startY) || isNaN(endY) || startY < 1990 || endY > 2027 || endY < startY) {
+      setStatus('Year theek nahi hai. Saal 1990 se 2027 ke beech likho, jaise 2009 aur 2010.', 'error');
+      return;
+    }
+    var startD = new Date(Date.UTC(startY, 0, 1));
+    var endD = new Date(Date.UTC(endY, 11, 31));
+    if (!captchaOk(getCaptcha())) { setStatus('Pehle upar captcha ki 3 values bharo.', 'error'); return; }
+    var DAY = 86400000;
+    var total = Math.round((endD - startD) / DAY) + 1;
+    if (total > 100 && !confirm(startY + ' se ' + endY + ' tak (' + total + ' din) chalenge — pakka?')) return;
+
+    var isResume = !!(loopState && loopState.mode === 'date' && loopState.regNo === regNo &&
+      loopState.endTime === endD.getTime() && loopState.nextTime > startD.getTime() && loopState.nextTime <= endD.getTime());
+    if (!isResume) freshStart();
+    loopStop = false; loopRunning = true; loopPausedCaptcha = false;
+    showControls();
+    if (!isResume) logLine('Date Loop: ' + regNo + ' (fix), ' + startY + ' se ' + endY + ' tak (' + total + ' din)', 'info');
+    var startTime = isResume ? loopState.nextTime : startD.getTime();
+    if (isResume) logLine('Resume: ' + fmtAPI(new Date(startTime)) + ' se dobara shuru', 'info');
+    loopState = { mode: 'date', regNo: regNo, endTime: endD.getTime(), nextTime: startTime };
+
+    var skipped = 0, errors = 0, consecutiveErrors = 0;
+    for (var t = startTime, idx = 1; t <= endD.getTime(); t += DAY, idx++) {
+      if (loopStop) { logLine('Loop roka gaya. Found: ' + foundResults.length, 'info'); break; }
+      var cur = new Date(t);
+      var apiDate = fmtAPI(cur);
+      loopState.nextTime = t;
+      try {
+        var obj = await postVehicle(regNo, apiDate);
+        var msg = (obj.message || '').toLowerCase();
+        if (obj.status === 200) {
+          consecutiveErrors = 0;
+          obj.registrationNo = regNo;
+          obj.triedDate = apiDate;
+          foundResults.push(obj);
+          logLine(apiDate + ': ✅ FOUND', 'ok');
+          document.getElementById('loopResults').innerHTML += foundCard(obj);
+          document.getElementById('pdfBtn').style.display = 'block';
+          logLine('Pehla found mil gaya (' + apiDate + ') — loop rok diya. Found: ' + foundResults.length, 'info');
+          loopState.nextTime = t;
+          loopStop = true;
+          break;
+        } else if (msg.indexOf('captcha') !== -1) {
+          logLine(apiDate + ': ⏸️ CAPTCHA expire/invalid — loop ruk gaya. Upar fresh captcha daal kar Resume dabao.', 'err');
+          loopState.nextTime = t;
+          loopPausedCaptcha = true;
+          document.getElementById('resumeBtn').style.display = 'block';
+          break;
+        } else {
+          consecutiveErrors = 0; skipped++;
+          logLine(apiDate + ': ⏭️ skip (' + (obj.message || ('status ' + obj.status)) + ')', 'skip');
+        }
+      } catch (e) {
+        errors++; consecutiveErrors++;
+        logLine(apiDate + ': ❌ error — ' + e.message, 'err');
+        if (consecutiveErrors >= 3) {
+          logLine('Lagatar 3 errors — loop rok diya. File se fetch CORS ki wajah se block ho sakta hai.', 'err');
+          break;
+        }
+      }
+      // ultra fast: koi delay nahi — jawab aate hi agli request
+    }
+    if (!loopStop && !loopPausedCaptcha) loopState.nextTime = endD.getTime() + DAY;
+    finishLoop('Date Loop khatam — Found: ' + foundResults.length + ', Skip: ' + skipped + ', Error: ' + errors);
+  }
+
+  document.getElementById('numBtn').addEventListener('click', function () {
+    loopState = null; // naya loop hamesha shuru se
+    runNumberLoop();
+  });
+  document.getElementById('dateBtn').addEventListener('click', function () {
+    loopState = null; // naya loop hamesha shuru se
+    runDateLoop();
+  });
+  document.getElementById('stopBtn').addEventListener('click', function () {
+    loopStop = true;
+    setStatus('Loop roka ja raha hai...', '');
+  });
+  document.getElementById('resumeBtn').addEventListener('click', function () {
+    if (!loopState) return;
+    if (loopState.mode === 'number') runNumberLoop();
+    else runDateLoop();
+  });
+  document.getElementById('pdfBtn').addEventListener('click', function () {
+    if (!foundResults.length) { alert('Koi found result nahi — PDF khaali hogi.'); return; }
+    var cards = foundResults.map(function (o) { return foundCard(o); }).join('');
+    var doc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>MTMIS Loop Results</title>' +
+      '<style>body{font-family:system-ui,Arial,sans-serif;color:#1f2937;padding:24px}h1{font-size:20px}h3{font-size:16px;margin:0}' +
+      '.card{border:1px solid #ddd;border-top:5px solid #0b6e4f;border-radius:12px;padding:16px;margin:14px 0;page-break-inside:avoid}' +
+      '.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.f{background:#f8fafc;border-radius:8px;padding:8px 10px}' +
+      '.k{font-size:10px;font-weight:700;text-transform:uppercase;color:#6b7280}.v{font-size:14px;font-weight:700}</style></head><body>' +
+      '<h1>🚗 MTMIS Loop Results</h1><p>Found: ' + foundResults.length + ' — ' + new Date().toLocaleString() + '</p>' +
+      cards.replace(/found-card/g, 'card') + '</body></html>';
+    var w = window.open('', '_blank');
+    w.document.write(doc);
+    w.document.close();
+    w.focus();
+    w.print();
+  });
+
+  // Fresh captcha — MTMIS se naya captcha mangwao, image yahin dikhao,
+  // token/text khud bhar jayenge; sirf image wala number type karna hai.
+  async function tryCaptcha(url) {
+    var r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ action: 'captcha' })
+    });
+    var j = JSON.parse(await r.text());
+    if (!j.ok) {
+      var detail = j.tried ? ' [' + j.tried.join(' | ') + ']' : '';
+      var err = new Error((j.error || 'captcha nahi mila') + detail);
+      err.answered = true; // server ne jawab diya — asal wajah yehi hai
+      throw err;
+    }
+    return j;
+  }
+  function applyCaptcha(j) {
+    var raw = j.raw, img = null, token = null, text = null;
+    if (typeof raw === 'string') {
+      var t = raw.trim();
+      if (t.charAt(0) === '{') {
+        try {
+          var o = JSON.parse(t);
+          img = o.dntCaptchaImage || o.captchaImage || o.image || o.img || o.data || o.captcha || null;
+          token = o.dntCaptchaToken || o.token || o.captchaToken || null;
+          text = o.dntCaptchaText || o.text || o.captchaText || null;
+        } catch (e) { /* JSON nahi — neeche wale raste dekho */ }
+      } else if (t.indexOf('data:image') === 0) {
+        img = t;
+      } else if (t.indexOf('<svg') === 0) {
+        img = 'data:image/svg+xml;utf8,' + encodeURIComponent(t);
+      }
+    } else if (raw && typeof raw === 'object') {
+      img = raw.dntCaptchaImage || raw.captchaImage || raw.image || raw.img || raw.data || raw.captcha || null;
+      token = raw.dntCaptchaToken || raw.token || raw.captchaToken || null;
+      text = raw.dntCaptchaText || raw.text || raw.captchaText || null;
+    }
+    if (img) {
+      var el = document.getElementById('capImg');
+      el.src = img; el.style.display = 'block';
+    }
+    if (token) document.getElementById('capToken').value = token;
+    if (text) document.getElementById('capText').value = text;
+    document.getElementById('capInput').value = '';
+    document.getElementById('capInput').focus();
+    return !!(img || token || text);
+  }
+  async function fetchFreshCaptcha() {
+    var st = document.getElementById('capFetchStatus');
+    st.textContent = 'Naya captcha la raha hun...';
+    st.style.color = '';
+    var urls = [];
+    if (location.protocol.indexOf('http') === 0) urls.push('mtmis-proxy.php');
+    urls.push(BRIDGE_URL + '/api/captcha');
+    var lastErr = null, primaryErr = null;
+    for (var i = 0; i < urls.length; i++) {
+      try {
+        var j = await tryCaptcha(urls[i]);
+        if (applyCaptcha(j)) {
+          st.textContent = 'Naya captcha aa gaya ✅ — image mein likha number type karo.';
+          st.style.color = '#0b6e4f';
+        } else {
+          st.textContent = 'Captcha aaya magar samajh nahi aaya — DevTools se manual paste karo.';
+          st.style.color = '#b3261e';
+        }
+        return;
+      } catch (e) {
+        lastErr = e;
+        // Proxy ka jawab (jaise MTMIS timeout) yaad rakho, magar bridge
+        // phir bhi try karo — tumhara PC MTMIS ko dekh sakta hai, server nahi.
+        if (e.answered && !primaryErr) primaryErr = e;
+      }
+    }
+    var show = primaryErr || lastErr;
+    st.textContent = 'Captcha nahi mila: ' + (show && show.message) + ' — DevTools se manual paste karo.';
+    st.style.color = '#b3261e';
+  }
+  document.getElementById('freshCapBtn').addEventListener('click', fetchFreshCaptcha);
+
+  async function checkBridge() {
+    var el = document.getElementById('bridgeStatus');
+    if (!el) return;
+    var bits = [];
+    if (location.protocol.indexOf('http') === 0) {
+      try {
+        var rp = await fetch('mtmis-proxy.php', { cache: 'no-store' });
+        var jp = await rp.json();
+        bits.push(jp.ok ? 'Server proxy: tayyar ✅' : 'Server proxy: jawab nahi de raha');
+      } catch (e) { bits.push('Server proxy: nahi mila (mtmis-proxy.php upload check karo)'); }
+    }
+    try {
+      var rb = await fetch(BRIDGE_URL + '/api/ping', { cache: 'no-store' });
+      var jb = await rb.json();
+      bits.push(jb.ok ? 'Local bridge: chal raha hai ✅' : 'Local bridge: jawab nahi de raha');
+    } catch (e) { bits.push('Local bridge: nahi chal raha'); }
+    el.textContent = bits.join(' • ');
+    el.style.color = bits.join(' ').indexOf('✅') !== -1 ? '#0b6e4f' : '#b3261e';
+  }
+  checkBridge();
+
+</script>
+</body>
+</html>
